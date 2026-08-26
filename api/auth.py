@@ -66,7 +66,7 @@ async def register(scheme: UserCreateScheme, db: AsyncSession = Depends(get_db))
     user = UserProfile(**update_data)
 
     db.add(user)
-    await db.commit(user)
+    await db.commit()
     await db.refresh(user)
     return {'detail': 'Successfully registered in!'}
 

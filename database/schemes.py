@@ -17,7 +17,7 @@ class UserCreateScheme(BaseModel):
     username: str = Field(min_length=3, max_length=30)
     email: EmailStr | None = None
     phone: str | None = None 
-    password: str = Field(ge=6, le=100)
+    password: str = Field(min_length=6, max_length=100)
     status: StatusChoices = Field(default='Basic')
 
 class UserResponseScheme(BaseModel):
@@ -34,3 +34,9 @@ class UserUpdateScheme(BaseModel):
     email: EmailStr | None = None 
     phone: str | None = None
     password: str | None = Field(default=None, ge=6, le=100)
+
+class SimpleChatRequest(BaseModel):
+    message: str
+
+class ChatResponse(BaseModel):
+    response: str

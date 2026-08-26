@@ -4,8 +4,8 @@ class Settings(BaseSettings):
     DB_URL: str
     SECRET_KEY: str
     ALGORITHM: str
-    ACCESS_TOKEN_LIFETIME: str
-    REFRESH_TOKEN_LIFETIME: str
+    ACCESS_TOKEN_LIFETIME: int
+    REFRESH_TOKEN_LIFETIME: int
 
     model_config = SettingsConfigDict(
         env_file='.env',
