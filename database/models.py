@@ -16,7 +16,9 @@ class UserProfile(Base):
     email: Mapped[str | None] = mapped_column(nullable=True)
     phone: Mapped[str | None] = mapped_column(nullable=True)
     password: Mapped[str] = mapped_column(String(100), nullable=False)
-    status: Mapped[StatusChoices] = mapped_column(Enum(StatusChoices), default=StatusChoices.BASIC)
+    plan: Mapped[StatusChoices] = mapped_column(Enum(StatusChoices), 
+                                                default=StatusChoices.BASIC, 
+                                                server_default=StatusChoices.BASIC.value)
     registered_date: Mapped[date] = mapped_column(Date, default=date.today)
 
     user_refresh: Mapped['UserRefresh'] = relationship(back_populates='refresh_user',
