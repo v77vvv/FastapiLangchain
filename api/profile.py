@@ -25,7 +25,7 @@ async def get_current_user(
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        subject = payload.get('sub') or payload.get('user_id')
+        subject = payload.get('sub')
         if subject is None:
             raise credentials_exception
         user_id = int(subject)
@@ -40,7 +40,7 @@ async def get_current_user(
         raise credentials_exception
 
     refresh_res = await db.execute(
-        select(UserRefresh).where(UserRefresh.user_id==scalar.id)
+        select(UserRefresh).where(UserRefresh.user==scalar.id)
     )
     refresh_scal = refresh_res.scalars().first()
     if not refresh_scal:

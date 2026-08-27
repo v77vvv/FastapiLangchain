@@ -1,6 +1,6 @@
 from passlib.context import CryptContext
 from database.connection import get_db
-from database.schemes import UserCreateScheme, UserLoginScheme, UserResponseScheme, UserRefreshScheme
+from database.schemes import UserCreateScheme, UserLoginScheme, UserRefreshScheme
 from database.models import UserProfile, UserRefresh
 from config import settings
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -1,61 +1,84 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, status, HTTPException, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from langchain.messages import HumanMessage, SystemMessage
-from langchain_ollama import ChatOllama
 from database.connection import get_db
-from database.models import UserProfile, ChatHistory
-from database.schemes import SimpleChatRequest, ChatResponse
+from database.models import Chat, UserProfile
+from database.schemes import ChatCreateScheme, ChatResponseScheme, ChatUpdateScheme
 from .profile import get_current_user
 
-router = APIRouter(prefix="/chat", tags=["Chat"])
+router = APIRouter(prefix='/chat', tags=['Chat'])
 
-llm = ChatOllama(model="llama3.2")
 
-@router.post("/", response_model=ChatResponse)
-async def chat_simple(
-    payload: SimpleChatRequest,
+@router.get('/', response_model=List[ChatResponseScheme], tags=['Chat'])
+async def get_list(
     current_user: UserProfile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.plan == "basic":
-        stmt = select(ChatHistory).where(ChatHistory.user_id == current_user.id)
-        result = await db.execute(stmt)
-        user_requests_count = len(result.scalars().all())
+    stmt = await db.execute(select(Chat).where(Chat.user_id == current_user.id))
+    return stmt.scalars().all()
 
-        if user_requests_count >= 1:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="U have already used all of your limit"
-            )
 
-    try:
-        messages = [
-            SystemMessage(
-                content=(
-                    "Ты 10-летний Python backend и JavaScript frontend разработчик. "
-                    "Отвечай на все вопросы от пользователя как подобает твоему уровню."
-                )
-            ),
-            HumanMessage(content=payload.message)
-        ]
+@router.post('/', response_model=ChatResponseScheme, status_code=status.HTTP_201_CREATED, tags=['Chat'])
+async def post(
+    scheme: ChatCreateScheme,
+    current_user: UserProfile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    chat = Chat(
+        **scheme.model_dump(),
+        user_id=current_user.id
+    )
 
-        response = await llm.ainvoke(messages)
-        response_text = str(response.content)
+    db.add(chat)
+    await db.commit()
+    await db.refresh(chat)
+    return chat
 
-        new_history = ChatHistory(
-            user_id=current_user.id,
-            user_message=payload.message,
-            bot_response=response_text
-        )
-        db.add(new_history)
-        await db.commit()
 
-        return ChatResponse(response=response_text)
+@router.put('/{id_}/', response_model=ChatResponseScheme, tags=['Chat'])
+async def put(
+    id_: int,
+    scheme: ChatUpdateScheme,
+    current_user: UserProfile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)  
+):
+    stmt = await db.execute(select(Chat).where(Chat.id == id_, 
+                                               Chat.user_id == current_user.id))
+    scalar = stmt.scalar_one_or_none()
 
-    except Exception as e:
-        await db.rollback()
+    if not scalar:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка Ollama: {str(e)}"
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Chat not found or access denied"
         )
+    
+    update_data = scheme.model_dump(exclude_unset=True)
+
+    for key, value in update_data.items():
+        setattr(scalar, key, value)
+
+    await db.commit()
+    await db.refresh(scalar)
+    return scalar
+
+
+@router.delete('/{id_}/', status_code=status.HTTP_204_NO_CONTENT, tags=['Chat'])
+async def delete(
+    id_: int,
+    current_user: UserProfile = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = await db.execute(select(Chat).where(Chat.id == id_, 
+                                               Chat.user_id == current_user.id))
+    scalar = stmt.scalar_one_or_none()
+
+    if not scalar:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Chat not found or access denied"
+        )
+
+    await db.delete(scalar)
+    await db.commit()
+    return None
